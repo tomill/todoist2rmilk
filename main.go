@@ -14,6 +14,11 @@ func main() {
 	from, _ := todoist.NewClient("", os.Getenv("TODOIST_TOKEN"), "", "", nil)
 	dest := rtm.NewClient(os.Getenv("RTM_TOKEN"), os.Getenv("RTM_API_KEY"))
 
+	timeline, err := dest.Timelines.Create()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if err := from.FullSync(context.Background(), []todoist.Command{}); err != nil {
 		log.Fatal(err)
 	}
@@ -26,28 +31,15 @@ func main() {
 			continue
 		}
 
-		if err := add(dest, v.Content); err != nil {
+		if _, _, err = dest.Tasks.Add(timeline, v.Content); err != nil {
 			log.Fatal(err)
 		}
-		if err := from.Item.Complete(v.ID, todoist.Time{Time: time.Now()}, true); err != nil {
-			log.Fatal(err)
-		}
-		if err := from.Commit(context.Background()); err != nil {
+		if err := from.Item.Complete(v.ID, todoist.Time{Time: time.Now().UTC()}, true); err != nil {
 			log.Fatal(err)
 		}
 	}
-}
 
-func add(rtm *rtm.Client, task string) error {
-	timeline, err := rtm.Timelines.Create()
-	if err != nil {
-		return err
+	if err := from.Commit(context.Background()); err != nil {
+		log.Fatal(err)
 	}
-
-	_, _, err = rtm.Tasks.Add(timeline, task)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
